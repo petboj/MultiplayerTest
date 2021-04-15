@@ -1,8 +1,10 @@
 package com.radefffactory.multiplayertest;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -27,6 +29,9 @@ public class MainActivity extends AppCompatActivity {
 
     FirebaseDatabase database;
     DatabaseReference playerRef;
+
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -43,9 +48,11 @@ public class MainActivity extends AppCompatActivity {
         playerName = preferences.getString("playerName", "");
         if (!playerName.equals("")) {
             Log.d("DebugTag","Ime igraca je zapamceno od ranije i glasi " + playerName);
-            playerRef = database.getReference("players/" + playerName);
-            addEventListener();
-            playerRef.setValue("");
+//            playerRef = database.getReference("players/" + playerName);
+//            addEventListener();
+//            playerRef.setValue("");
+            startActivity(new Intent(getApplicationContext(), MainActivity2.class));
+            finish();
         }
 
         button.setOnClickListener(new View.OnClickListener() {
@@ -58,14 +65,14 @@ public class MainActivity extends AppCompatActivity {
                     button.setText("LOGGING IN");
                     button.setEnabled(false);
                     playerRef = database.getReference("players/" + playerName);
-                    addEventListener();
-                    playerRef.setValue("");
+                    checkIfNickAlreadyExists(playerRef);                     
                  //   playerRef.setValue("Sadrzzzaj");
                     Log.d("DebugTag","Referenca ima vrednost " + playerRef.getKey());
                 }
             }
         });
     }
+
     private void addEventListener() {
         // read from database
         playerRef.addValueEventListener(new ValueEventListener() {
@@ -95,5 +102,48 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Error!", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void checkIfNickAlreadyExists(DatabaseReference playerRef) {
+        playerRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                String value = (String) snapshot.getValue();
+                Log.d("DebugTag", "snapshot ima vrednost : " + value);
+//                if (value.equals(PlayerState.PLAYINGGAME) || value.equals(PlayerState.WAITINGFOROPPONENT)
+//                    || value.equals(PlayerState.IDLE) ) {
+                if (value != null) {
+
+//                    Toast.makeText(MainActivity.this,
+//                            "Igrač sa takvim imenom već postoji!" , Toast.LENGTH_SHORT).show();
+                    showAlertDialog("Igrač sa takvim imenom već postoji!");
+                    button.setText("LOG IN"); button.setEnabled(true);
+                } else {
+                    addEventListener();
+                    playerRef.setValue(PlayerState.IDLE);
+                }
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.d("DebugTag", "Uslo se u onCacelled.");
+                
+            }
+        });
+        Log.d("DebugTag", "Sledi povratna vrednost metode checkIfNickAlreadyExists");
+    }
+
+    private void showAlertDialog(String messageToShow) {
+        AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this).create();
+        alertDialog.setTitle("Alert");
+        alertDialog.setMessage(messageToShow);
+        alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+        alertDialog.show();
     }
 }
