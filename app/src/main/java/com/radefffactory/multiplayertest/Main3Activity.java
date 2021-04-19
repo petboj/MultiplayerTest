@@ -3,6 +3,7 @@ package com.radefffactory.multiplayertest;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
@@ -25,8 +26,12 @@ public class Main3Activity extends AppCompatActivity {
     String role = "";
     String message = "";
 
+    int brojPoteza = 0;
+
     FirebaseDatabase database;
     DatabaseReference messageRef;
+    DatabaseReference playerRef;
+    DatabaseReference roomRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,7 +43,7 @@ public class Main3Activity extends AppCompatActivity {
         database = FirebaseDatabase.getInstance();
 
         button = findViewById(R.id.button);
-        button.setEnabled(false);
+        button.setEnabled(true);
 
         SharedPreferences preferences = getSharedPreferences("PREFS", 0);
         playerName = preferences.getString("playerName", "");
@@ -65,9 +70,12 @@ public class Main3Activity extends AppCompatActivity {
 
         // listen for incoming messages
         messageRef = database.getReference("rooms/" + roomName + "/message");
-        message = role + ":Poked!";
+//        message = role + ":Poked!";
+        message = "Ceka se da igra pocne";
         messageRef.setValue(message);
         addRoomEventListener();
+        playerRef = database.getReference("players/" + playerName );
+        roomRef = database.getReference("rooms/" + roomName );
     }
 
     private void addRoomEventListener() {
@@ -75,18 +83,41 @@ public class Main3Activity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 // message received
+//                brojPoteza++;
+
                 if (role.equals("host")) {
-                    if (snapshot.getValue(String.class).contains("guest:")) {
+                    if (snapshot.getValue(String.class).contains("host:")) {
+                        brojPoteza++;
+                        button.setEnabled(false);
+
+                    } else if (snapshot.getValue(String.class).contains("guest:")) {
+                        brojPoteza++;
                         button.setEnabled(true);
+//                        Toast.makeText(Main3Activity.this,
+//                                "" + snapshot.getValue(String.class).replace("guest:", ""), Toast.LENGTH_SHORT).show();
                         Toast.makeText(Main3Activity.this,
-                                "" + snapshot.getValue(String.class).replace("guest:", ""), Toast.LENGTH_SHORT).show();
+                                snapshot.getValue(String.class), Toast.LENGTH_SHORT).show();
                     }
                 } else {
-                    if (snapshot.getValue(String.class).contains("host:")) {
+                    if (snapshot.getValue(String.class).contains("guest:")) {
+                        brojPoteza++;
+                        button.setEnabled(false);
+//                        Toast.makeText(Main3Activity.this,
+//                                "" + snapshot.getValue(String.class).replace("host:", ""), Toast.LENGTH_SHORT).show();
+                    } else if (snapshot.getValue(String.class).contains("host:")) {
+                        brojPoteza++;
                         button.setEnabled(true);
+//                        Toast.makeText(Main3Activity.this,
+//                                "" + snapshot.getValue(String.class).replace("guest:", ""), Toast.LENGTH_SHORT).show();
                         Toast.makeText(Main3Activity.this,
-                                "" + snapshot.getValue(String.class).replace("host:", ""), Toast.LENGTH_SHORT).show();
+                                snapshot.getValue(String.class), Toast.LENGTH_SHORT).show();
                     }
+                }
+                Log.d("DebugTag", "Ukupan broj poteza kod igraca " + playerName + " je " + brojPoteza);
+                if (isIgraZavrsena()) {
+                    playerRef.setValue(PlayerState.IDLE);
+                    startActivity(new Intent(getApplicationContext(), MainActivity2.class));
+                    roomRef.setValue(null);
                 }
             }
 
@@ -97,4 +128,9 @@ public class Main3Activity extends AppCompatActivity {
             }
         });
     }
+
+    private boolean isIgraZavrsena() {
+        return brojPoteza >= 5;
+    }
+
 }

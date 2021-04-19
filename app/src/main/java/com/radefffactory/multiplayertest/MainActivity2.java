@@ -117,7 +117,8 @@ public class MainActivity2 extends AppCompatActivity {
                 // join the room
                 button.setText("CREATE ROOM");
                 button.setEnabled(true);
-                Intent intent = new Intent(getApplicationContext(), Main3Activity.class);
+//                Intent intent = new Intent(getApplicationContext(), Main3Activity.class);
+                Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
                 intent.putExtra("roomName", roomName);
                 startActivity(intent);
             }
@@ -212,7 +213,8 @@ public class MainActivity2 extends AppCompatActivity {
                 if (value.equals(PlayerState.PLAYINGGAME)) {
                     button.setText("CREATE ROOM");
                     button.setEnabled(true);
-                    Intent intent = new Intent(getApplicationContext(), Main3Activity.class);
+//                    Intent intent = new Intent(getApplicationContext(), Main3Activity.class);
+                    Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
                     intent.putExtra("roomName", roomName);
                     startActivity(intent);
                 }
