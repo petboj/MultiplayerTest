@@ -3,6 +3,7 @@ package com.radefffactory.multiplayertest;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
@@ -15,6 +16,9 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class PlayActivity extends AppCompatActivity {
 
@@ -37,6 +41,7 @@ public class PlayActivity extends AppCompatActivity {
     String roomName = "";
     String role = "";
     String message = "";
+    Message messageObject;
 
     FirebaseDatabase database;
     DatabaseReference messageRef;
@@ -44,6 +49,9 @@ public class PlayActivity extends AppCompatActivity {
     DatabaseReference roomRef;
 
     Button newGameButton;
+    Button mainMenuButton;
+
+    String notification;
 
     public static PlayActivity playActivity = null;
 
@@ -69,19 +77,49 @@ public class PlayActivity extends AppCompatActivity {
             }
         }
 
+        playerRef = database.getReference("players/" + playerName );
+        roomRef = database.getReference("rooms/" + roomName );
+
         messageRef = database.getReference("rooms/" + roomName + "/message");
 //        message = role + ":Poked!";
-        message = "Ceka se da igra pocne";
-        messageRef.setValue(message);
+
+        if (role.equals("host")) {
+            boolean hostIgraPrvi = hostIgraPrvi();
+            zapocniNovuIgru(hostIgraPrvi);
+            messageObject = new Message(Message.MessageCodes.PRVAPARTIJA, role, playerName, hostIgraPrvi ? 1 : 0, 0 , 0);
+            message = Message.convertToJsonString(messageObject);
+            messageRef.setValue(message);
+        } else {
+            messageRef.setValue("");
+        }
+
+
+
+//        message = "Ceka se da igra pocne";
+
+
+
 
         newGameButton = findViewById(R.id.newGameButton);
         newGameButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                zapocniNovuIgru();
+//                zapocniNovuIgru(hostIgraPrvi());
             }
         });
         addRoomEventListener();
+        mainMenuButton = findViewById(R.id.mainMenuButton);
+
+        mainMenuButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                playerRef.setValue(PlayerState.IDLE);
+                startActivity(new Intent(getApplicationContext(), MainActivity2.class));
+                if (role.equals("host")) {
+                    roomRef.setValue(null);
+                }
+            }
+        });
 //        ((Button) findViewById(R.id.humanVsCompButton)).setOnClickListener(buttonAL);
 //        ((Button) findViewById(R.id.humanVsHumanButton)).setOnClickListener(buttonAL);
 
@@ -234,7 +272,7 @@ public class PlayActivity extends AppCompatActivity {
 
     */
 
-    private void zapocniNovuIgru() {
+    private void zapocniNovuIgru(boolean hostPlaysFirst) {
         Igrac igrac1 = null, igrac2 = null;
         this.gameMode = PlayActivity.HUMANREMOTEHUMANMODE;
         if (this.gameMode == HUMANHUMANMODE) {
@@ -249,11 +287,11 @@ public class PlayActivity extends AppCompatActivity {
             }
         } else if (this.gameMode == HUMANREMOTEHUMANMODE) {
             if (role.equals("host")) {
-                igrac1 = new Covek(true);
-                igrac2 = new RemoteCovek(false);
-            } else {
-                igrac1 = new RemoteCovek(true);
-                igrac2 = new Covek(false);
+                igrac1 = new Covek(hostPlaysFirst);
+                igrac2 = new RemoteCovek(! hostPlaysFirst);
+            } else if (role.equals("guest")) {
+                igrac1 = new RemoteCovek(hostPlaysFirst);
+                igrac2 = new Covek(! hostPlaysFirst);
             }
         }
 
@@ -275,6 +313,7 @@ public class PlayActivity extends AppCompatActivity {
             }
         });
         //((TextView) findViewById(R.id.gameResultLabel)).setText("");
+        informPlayersWhoPlaysFirst(hostPlaysFirst);
         igra.start();
         new Thread(new SetGameResultLabelThread()).start();
     }
@@ -303,38 +342,61 @@ public class PlayActivity extends AppCompatActivity {
         }
     }
 
+    private void informPlayersWhoPlaysFirst(boolean hostPlaysFirst) {
+        if (role.equals("host") && hostPlaysFirst || role.equals("guest") && !hostPlaysFirst) {
+            notification = "Igra je počela. Vi igrate prvi";
+        } else {
+            notification = "Igra je počela. Protivnik igra prvi";
+        }
+        TextView notifLabel = (TextView) findViewById(R.id.gameResultLabel);
+        Runnable task = new Runnable() {
+            @Override
+            public void run() {
+                PlayActivity.playActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Stuff that updates the UI
+                        notifLabel.setText(notification);
+                    }
+                });
+                try {
+                    Thread.sleep(4500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                PlayActivity.playActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Stuff that updates the UI
+                        notifLabel.setText("");
+                    }
+                });
+
+            }
+        };
+        new Thread(task).start();
+    }
+
     private void addRoomEventListener() {
         messageRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 // message received
                 message = snapshot.getValue(String.class);
-                int i, j;
-                if (role.equals("host")) {
-                    if (message.contains("guest :")) {
-                        i = extractKoordI(message);
-                        j = extractKoordJ(message);
-                        Log.d("DebugTag", "Kliknulo se na koordinate i=" + i + " j=" + j);
-                        igra.getTabla().setOdigranPotezI(i);
-                        igra.getTabla().setOdigranPotezJ(j);
+                messageObject = Message.convertFromJsonString(message);
+                if (messageObject == null) return;
+                if (messageObject.getMessageCode() == Message.MessageCodes.REGULARANPOTEZ) {
+                    if (role.equals("host") && messageObject.getSenderRole().equals("guest") ||
+                            role.equals("guest") && messageObject.getSenderRole().equals("host")) {
+                        igra.getTabla().setOdigranPotezI(messageObject.getI());
+                        igra.getTabla().setOdigranPotezJ(messageObject.getJ());
                         igra.setRemoteCovekOdigraoPotez(true);
                     }
-                } else {
-                    if (message.contains("host :")) {
-                        i = extractKoordI(message);
-                        j = extractKoordJ(message);
-                        Log.d("DebugTag", "Kliknulo se na koordinate i=" + i + " j=" + j);
-                        igra.getTabla().setOdigranPotezI(i);
-                        igra.getTabla().setOdigranPotezJ(j);
-                        igra.setRemoteCovekOdigraoPotez(true);
+                } else if (messageObject.getMessageCode() == Message.MessageCodes.PRVAPARTIJA) {
+                    if (role.equals("guest")) {
+                        zapocniNovuIgru(messageObject.getResponse() == 1);
                     }
                 }
-
-//                if (isIgraZavrsena()) {
-//                    playerRef.setValue(PlayerState.IDLE);
-//                    startActivity(new Intent(getApplicationContext(), MainActivity2.class));
-//                    roomRef.setValue(null);
-//                }
             }
 
             @Override
@@ -344,6 +406,45 @@ public class PlayActivity extends AppCompatActivity {
             }
         });
     }
+
+
+    // ranija varijanta ove metode, kada se poruka parsirala a nije se prenosila kao JSON objekat
+//    private void addRoomEventListener() {
+//        messageRef.addValueEventListener(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(@NonNull DataSnapshot snapshot) {
+//                // message received
+//                message = snapshot.getValue(String.class);
+//                int i, j;
+//                if (role.equals("host")) {
+//                    if (message.contains("guest :")) {
+//                        i = extractKoordI(message);
+//                        j = extractKoordJ(message);
+//                        Log.d("DebugTag", "Kliknulo se na koordinate i=" + i + " j=" + j);
+//                        igra.getTabla().setOdigranPotezI(i);
+//                        igra.getTabla().setOdigranPotezJ(j);
+//                        igra.setRemoteCovekOdigraoPotez(true);
+//                    }
+//                } else {
+//                    if (message.contains("host :")) {
+//                        i = extractKoordI(message);
+//                        j = extractKoordJ(message);
+//                        Log.d("DebugTag", "Kliknulo se na koordinate i=" + i + " j=" + j);
+//                        igra.getTabla().setOdigranPotezI(i);
+//                        igra.getTabla().setOdigranPotezJ(j);
+//                        igra.setRemoteCovekOdigraoPotez(true);
+//                    }
+//                }
+//
+//            }
+//
+//            @Override
+//            public void onCancelled(@NonNull DatabaseError error) {
+//                // error - retry
+//                messageRef.setValue(message);
+//            }
+//        });
+//    }
     private Igra igra;
 
     private static int extractKoordI(String message) {
@@ -357,5 +458,10 @@ public class PlayActivity extends AppCompatActivity {
         int a = message.indexOf("KOORDINATAJ=");
         String i = message.substring(a + 12, a + 13);
         return new Integer(i).intValue();
+    }
+
+    private static boolean hostIgraPrvi() {
+        double x = Math.random();
+        return (x >= 0.5);
     }
 }

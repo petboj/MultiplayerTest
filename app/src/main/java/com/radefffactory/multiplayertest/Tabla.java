@@ -100,11 +100,8 @@ public class Tabla {
             odigranPotezJ = j;
            // System.out.println("Pritisnuto " + i + " " + j);
 
-            if (PlayActivity.playActivity.role.equals("host")) {
-                igra.getMessageRef().setValue("host : KOORDINATAI=" + odigranPotezI + " KOORDINATAJ=" + odigranPotezJ);
-            } else if (PlayActivity.playActivity.role.equals("guest")) {
-                igra.getMessageRef().setValue("guest : KOORDINATAI=" + odigranPotezI + " KOORDINATAJ=" + odigranPotezJ);
-            }
+            Message messageObject = new Message(Message.MessageCodes.REGULARANPOTEZ, PlayActivity.playActivity.role, "", 0, i, j );
+            igra.getMessageRef().setValue(Message.convertToJsonString(messageObject));
             igra.setCovekOdigraoPotez(true);
         }
     };
