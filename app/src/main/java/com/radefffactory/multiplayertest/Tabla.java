@@ -7,6 +7,7 @@ package com.radefffactory.multiplayertest;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
@@ -82,6 +83,10 @@ public class Tabla {
         @Override
         public void onClick(View v)  {
             if (igra.isZavrsena()) return;
+            String poruka = "Klik na tablu : Greska";
+            if (igra.isCovekNaPotezu()) poruka = "Kliknula se tabla Covek je na potezu";
+            else if (igra.isRemoteCovekNaPotezu()) poruka = "Kliknula se tabla RemoteCovek je na potezu";
+            Log.d("DebugTag", poruka);
             if (! igra.isCovekNaPotezu()) return;
             int i = 0, j = 0;
             Button src = (Button) v;

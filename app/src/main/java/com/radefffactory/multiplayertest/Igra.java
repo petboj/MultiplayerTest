@@ -27,7 +27,9 @@ public class Igra extends Thread {
     public Igra(Igrac igrac1, Igrac igrac2) {
         this.igrac1 = igrac1;
         this.igrac2 = igrac2;
-        this.igracNaPotezu = igrac1;        
+//        this.igracNaPotezu = igrac1;  // Ovo je bio veliki bug koji sam teško otkrio
+        if (igrac1.isPrviNaPotezu()) igracNaPotezu = igrac1;
+        else if (igrac2.isPrviNaPotezu()) igracNaPotezu = igrac2;
     }
 
     public Tabla getTabla() {
@@ -78,6 +80,11 @@ public class Igra extends Thread {
     
     public synchronized boolean isCovekNaPotezu() {
         if (this.igracNaPotezu instanceof Covek) return true;
+        else return false;
+    }
+
+    public synchronized boolean isRemoteCovekNaPotezu() {
+        if (this.igracNaPotezu instanceof RemoteCovek) return true;
         else return false;
     }
     public synchronized void sledeciIgracNaPotezu() {        

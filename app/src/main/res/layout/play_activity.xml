@@ -29,19 +29,19 @@
             android:background="@android:color/holo_blue_dark"
             android:text="Nova igra"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/mainMenuButton"
+            app:layout_constraintEnd_toStartOf="@+id/leaveRoomButton"
             app:layout_constraintHorizontal_bias="0.5"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <Button
-            android:id="@+id/mainMenuButton"
+            android:id="@+id/leaveRoomButton"
             android:layout_width="117dp"
             android:layout_height="51dp"
             android:layout_marginTop="81dp"
             android:layout_marginBottom="18dp"
             android:background="@android:color/holo_blue_dark"
-            android:text="Glavni meni"
+            android:text="Napusti sobu"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.5"

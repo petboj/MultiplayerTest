@@ -17,9 +17,6 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-import java.util.Timer;
-import java.util.TimerTask;
-
 public class PlayActivity extends AppCompatActivity {
 
     private static final int HUMANCOMPMODE = 0, HUMANHUMANMODE = 1, HUMANREMOTEHUMANMODE = 2;
@@ -49,9 +46,11 @@ public class PlayActivity extends AppCompatActivity {
     DatabaseReference roomRef;
 
     Button newGameButton;
-    Button mainMenuButton;
+    Button leaveRoomButton;
 
     String notification;
+
+    boolean playerLeftTheRoom = false;
 
     public static PlayActivity playActivity = null;
 
@@ -70,6 +69,7 @@ public class PlayActivity extends AppCompatActivity {
         Bundle extras = getIntent().getExtras();
         if (extras != null) {
             roomName = extras.getString("roomName");
+            Log.d("DebugTag", "Uslo se u if (extras != null, roomName = " + roomName + " playerName = " + playerName);
             if (roomName.equals(playerName)) {
                 role = "host";
             } else {
@@ -108,18 +108,19 @@ public class PlayActivity extends AppCompatActivity {
             }
         });
         addRoomEventListener();
-        mainMenuButton = findViewById(R.id.mainMenuButton);
+        leaveRoomButton = findViewById(R.id.leaveRoomButton);
 
-        mainMenuButton.setOnClickListener(new View.OnClickListener() {
+        leaveRoomButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 playerRef.setValue(PlayerState.IDLE);
                 startActivity(new Intent(getApplicationContext(), MainActivity2.class));
-                if (role.equals("host")) {
-                    roomRef.setValue(null);
-                }
+                playerLeftTheRoom = true;
+                roomRef.setValue(null);
             }
         });
+
+        addRoomLeftListener();
 //        ((Button) findViewById(R.id.humanVsCompButton)).setOnClickListener(buttonAL);
 //        ((Button) findViewById(R.id.humanVsHumanButton)).setOnClickListener(buttonAL);
 
@@ -134,7 +135,29 @@ public class PlayActivity extends AppCompatActivity {
         ((Button) findViewById(R.id.mainMenuButton)).setOnClickListener(buttonAL);
         */
 
+
     }
+
+    private void addRoomLeftListener() {
+        roomRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Object value = snapshot.getValue();
+                if (value == null && !playerLeftTheRoom) {
+                    playerRef.setValue(PlayerState.IDLE);
+                    roomRef.removeEventListener(this);
+                    startActivity(new Intent(getApplicationContext(), MainActivity2.class));
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+    }
+
+
     /*
     private void changeCurrentPanel(int layout) {
         setContentView(layout);
@@ -273,6 +296,7 @@ public class PlayActivity extends AppCompatActivity {
     */
 
     private void zapocniNovuIgru(boolean hostPlaysFirst) {
+        Log.d("DebugTag", "metoda zapocniNovuIgru role = " + role + " playerName=" + playerName + "hostIgraPrvi= " + hostPlaysFirst);
         Igrac igrac1 = null, igrac2 = null;
         this.gameMode = PlayActivity.HUMANREMOTEHUMANMODE;
         if (this.gameMode == HUMANHUMANMODE) {
@@ -360,7 +384,7 @@ public class PlayActivity extends AppCompatActivity {
                     }
                 });
                 try {
-                    Thread.sleep(4500);
+                    Thread.sleep(6500);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -383,8 +407,12 @@ public class PlayActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 // message received
                 message = snapshot.getValue(String.class);
+                Log.d("DebugTag", "RoomEventListener role= " + role + " playerName= " + playerName + " message=" + message);
                 messageObject = Message.convertFromJsonString(message);
-                if (messageObject == null) return;
+                if (messageObject == null) {
+                    Log.d("DebugTag", "RoomEventListener role= " + role + " playerName= " + playerName + " messageObject je null.");
+                    return;
+                }
                 if (messageObject.getMessageCode() == Message.MessageCodes.REGULARANPOTEZ) {
                     if (role.equals("host") && messageObject.getSenderRole().equals("guest") ||
                             role.equals("guest") && messageObject.getSenderRole().equals("host")) {
@@ -394,6 +422,8 @@ public class PlayActivity extends AppCompatActivity {
                     }
                 } else if (messageObject.getMessageCode() == Message.MessageCodes.PRVAPARTIJA) {
                     if (role.equals("guest")) {
+                        Log.d("DebugTag", "RoomEventListener role= " + role + " playerName= " + playerName + "zapocinjemo novu igru kao " +
+                                ((messageObject.getResponse() == 1) ? "true" : "false") );
                         zapocniNovuIgru(messageObject.getResponse() == 1);
                     }
                 }
@@ -402,7 +432,8 @@ public class PlayActivity extends AppCompatActivity {
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
                 // error - retry
-                messageRef.setValue(message);
+//                messageRef.setValue(message);
+                messageRef.setValue(null);
             }
         });
     }
@@ -447,21 +478,11 @@ public class PlayActivity extends AppCompatActivity {
 //    }
     private Igra igra;
 
-    private static int extractKoordI(String message) {
-        int a = message.indexOf("KOORDINATAI=");
-        String i = message.substring(a + 12, a + 13);
-        return new Integer(i).intValue();
 
-    }
-
-    private static int extractKoordJ(String message) {
-        int a = message.indexOf("KOORDINATAJ=");
-        String i = message.substring(a + 12, a + 13);
-        return new Integer(i).intValue();
-    }
 
     private static boolean hostIgraPrvi() {
         double x = Math.random();
+        x = 0.4; // za potrebe testiranja da bi guest igrao prvi
         return (x >= 0.5);
     }
 }

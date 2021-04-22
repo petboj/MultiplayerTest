@@ -89,6 +89,7 @@ public class MainActivity2 extends AppCompatActivity {
                     Log.d("DebugTag", "Kliknulo se na igraca koji ceka protivnika.");
                     selectedPlayerName = selectedPlayerName.replace("  ...čeka na protivnika", "");
                     roomName = selectedPlayerName;
+                    Log.d("DebugTag", "RoomName se kreira prema igracu " + selectedPlayerName);
                     roomRef = database.getReference("rooms/" + roomName + "/player2");
                     addRoomEventListener();
                     roomRef.setValue(playerName);
@@ -118,8 +119,10 @@ public class MainActivity2 extends AppCompatActivity {
                 button.setText("CREATE ROOM");
                 button.setEnabled(true);
 //                Intent intent = new Intent(getApplicationContext(), Main3Activity.class);
+                Log.d("DebugTag", "Pozvao se ponovo onDataChange iz MainActivity2 addRoomEventListener() i zato se vraca na PlayActivity");
                 Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
                 intent.putExtra("roomName", roomName);
+                roomRef.removeEventListener(this);  // Da se ne bi pozivao ponovo ovaj listener kad se pređe iz PlayaAtivity u ovaj activity
                 startActivity(intent);
             }
 
@@ -210,9 +213,11 @@ public class MainActivity2 extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 String value = (String) snapshot.getValue();
+                Log.d("DebugTag", "Uslo se u onDataChange od addPlayerWasChosenByAnotherPlayerListener playerRef = players/" + playerRef.getKey() + " roomName = " + roomName);
                 if (value.equals(PlayerState.PLAYINGGAME)) {
                     button.setText("CREATE ROOM");
                     button.setEnabled(true);
+                    playerRef.removeEventListener(this);
 //                    Intent intent = new Intent(getApplicationContext(), Main3Activity.class);
                     Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
                     intent.putExtra("roomName", roomName);
