@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:divider="?android:dividerVertical"
+    android:showDividers="middle">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:gravity="center"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        android:id="@+id/dialog_text"/>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/linearLayout"
+        style="?android:buttonBarStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:divider="?android:dividerHorizontal"
+        android:orientation="horizontal"
+        android:showDividers="middle"
+        app:layout_constraintEnd_toEndOf="@+id/accept_action"
+        app:layout_constraintStart_toEndOf="@+id/accept_action">
+
+        <Button
+            android:id="@+id/accept_action"
+            style="?android:buttonBarButtonStyle"
+            android:layout_width="140dp"
+            android:layout_height="54dp"
+            android:layout_marginStart="50dp"
+            android:layout_marginLeft="50dp"
+            android:layout_marginEnd="1dp"
+            android:layout_marginRight="1dp"
+            android:width="20dp"
+            android:text="Prihvati"
+            android:textAllCaps="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/reject_action"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/reject_action"
+            app:layout_constraintVertical_bias="0.0"
+            tools:layout_conversion_absoluteHeight="54dp"
+            tools:layout_conversion_absoluteWidth="205dp" />
+
+        <Button
+            android:id="@+id/reject_action"
+            style="?android:buttonBarButtonStyle"
+            android:layout_width="140dp"
+            android:layout_height="54dp"
+            android:layout_marginStart="38dp"
+            android:layout_marginLeft="38dp"
+            android:layout_marginTop="48dp"
+            android:layout_marginEnd="50dp"
+            android:layout_marginRight="50dp"
+            android:width="20dp"
+            android:text="Odbij"
+            android:textAllCaps="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/accept_action"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.0"
+            tools:layout_conversion_absoluteHeight="54dp"
+            tools:layout_conversion_absoluteWidth="205dp" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</LinearLayout>

@@ -1,10 +1,14 @@
 package com.radefffactory.multiplayertest;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -51,6 +55,7 @@ public class PlayActivity extends AppCompatActivity {
     String notification;
 
     boolean playerLeftTheRoom = false;
+    boolean newGameRequested = false;
 
     public static PlayActivity playActivity = null;
 
@@ -105,6 +110,10 @@ public class PlayActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 //                zapocniNovuIgru(hostIgraPrvi());
+                newGameRequested = true;
+                messageObject = new Message(Message.MessageCodes.ZAHTEVZANOVOMIGROM, role, playerName, 0, 0 , 0);
+                message = Message.convertToJsonString(messageObject);
+                messageRef.setValue(message);
             }
         });
         addRoomEventListener();
@@ -403,6 +412,7 @@ public class PlayActivity extends AppCompatActivity {
 
     private void addRoomEventListener() {
         messageRef.addValueEventListener(new ValueEventListener() {
+            @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 // message received
@@ -426,7 +436,109 @@ public class PlayActivity extends AppCompatActivity {
                                 ((messageObject.getResponse() == 1) ? "true" : "false") );
                         zapocniNovuIgru(messageObject.getResponse() == 1);
                     }
+                } else if (messageObject.getMessageCode() == Message.MessageCodes.ZAHTEVZANOVOMIGROM) {
+                    if (!newGameRequested) { // da bi znali da je prijemna strana
+                        AlertDialog.Builder builder = new AlertDialog.Builder(playActivity);
+                        View view = playActivity.getLayoutInflater().inflate(R.layout.dialog_layout, null);
+                        builder.setView(view);
+                        final AlertDialog alertDialog = builder.create();
+                        TextView dialogText = view.findViewById(R.id.dialog_text);
+                        dialogText.setText("Igrač " + messageObject.getSenderPlayerName() + " želi novu partiju.");
+                        Button reject = (Button) view.findViewById(R.id.reject_action);
+                        reject.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                messageObject = new Message(Message.MessageCodes.ODGOVORNANOVUIGRU, role, playerName, 0, 0, 0);
+                                message = Message.convertToJsonString(messageObject);
+                                messageRef.setValue(message);
+                                alertDialog.dismiss();
+                            }
+                        });
+                        Button accept = (Button) view.findViewById(R.id.accept_action);
+                        accept.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                if (role.equals("host")) {
+                                    boolean hostIgraPrvi = hostIgraPrvi();
+                                    zapocniNovuIgru(hostIgraPrvi);
+                                    // u parametar "response" ubacujemo da je prihvatio zahtev, a u parametar "i" ko igra prvi
+                                    messageObject = new Message(Message.MessageCodes.ODGOVORNANOVUIGRU, role, playerName, 1, hostIgraPrvi ? 1 : 0, 0);
+                                    message = Message.convertToJsonString(messageObject);
+                                    messageRef.setValue(message);
+                                } else if (role.equals("guest")) {
+                                    messageObject = new Message(Message.MessageCodes.ODGOVORNANOVUIGRU, role, playerName, 1, 0, 0);
+                                    message = Message.convertToJsonString(messageObject);
+                                    messageRef.setValue(message);
+                                }
+                                alertDialog.dismiss();
+                            }
+                        });
+                        alertDialog.setCancelable(false);
+                        alertDialog.show();
+//                        builder.setTitle("");
+//                        builder.setMessage("Igrač " + messageObject.getSenderPlayerName() + " želi novu partiju.")
+//                                .setCancelable(false)
+//                                .setPositiveButton("Prihvati", new DialogInterface.OnClickListener() {
+//                                    public void onClick(DialogInterface dialog, int id) {
+//                                        if (role.equals("host")) {
+//                                            boolean hostIgraPrvi = hostIgraPrvi();
+//                                            zapocniNovuIgru(hostIgraPrvi);
+//                                            // u parametar "response" ubacujemo da je prihvatio zahtev, a u parametar "i" ko igra prvi
+//                                            messageObject = new Message(Message.MessageCodes.ODGOVORNANOVUIGRU, role, playerName, 1, hostIgraPrvi ? 1 : 0, 0);
+//                                            message = Message.convertToJsonString(messageObject);
+//                                            messageRef.setValue(message);
+//                                        } else if (role.equals("guest")) {
+//                                            messageObject = new Message(Message.MessageCodes.ODGOVORNANOVUIGRU, role, playerName, 1, 0, 0);
+//                                            message = Message.convertToJsonString(messageObject);
+//                                            messageRef.setValue(message);
+//                                        }
+//                                        dialog.dismiss();
+//                                    }
+//                                })
+//                                .setNegativeButton("Odbij", new DialogInterface.OnClickListener() {
+//                                    public void onClick(DialogInterface dialog, int id) {
+//                                        messageObject = new Message(Message.MessageCodes.ODGOVORNANOVUIGRU, role, playerName, 0, 0, 0);
+//                                        message = Message.convertToJsonString(messageObject);
+//                                        messageRef.setValue(message);
+//                                        dialog.cancel();
+//                                    }
+//                                });
+//                        builder.setView(R.layout.dialog_layout);
+//                        AlertDialog alertDialog = builder.create();
+//                        alertDialog.show();
+                    }
+                } else if (messageObject.getMessageCode() == Message.MessageCodes.ODGOVORNANOVUIGRU) {
+                    if (newGameRequested) {
+                        if (messageObject.getResponse() == 1) {
+
+                            if (role.equals("host")) {
+                                boolean hostIgraPrvi = hostIgraPrvi();
+                                zapocniNovuIgru(hostIgraPrvi);
+                                messageObject = new Message(Message.MessageCodes.PRVAPARTIJA, role, playerName, hostIgraPrvi ? 1 : 0, 0, 0);
+                                message = Message.convertToJsonString(messageObject);
+                                messageRef.setValue(message);
+                            } else if (role.equals("guest")) {
+                                zapocniNovuIgru(messageObject.getI() == 1);
+                            }
+                        } else if (messageObject.getResponse() == 0) {
+                            AlertDialog.Builder builder = new AlertDialog.Builder(playActivity);
+                            builder.setTitle("");
+                            builder.setMessage("Igrač " + messageObject.getSenderPlayerName() + " odbija zahtev.")
+                                    .setCancelable(false)
+                                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface dialog, int id) {
+                                            dialog.dismiss();
+                                        }
+                                    });
+                            AlertDialog alertDialog = builder.create();
+                            alertDialog.show();
+
+                        }
+
+                    }
+                    newGameRequested = false;
                 }
+
             }
 
             @Override
