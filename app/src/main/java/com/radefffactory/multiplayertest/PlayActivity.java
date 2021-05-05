@@ -54,6 +54,7 @@ public class PlayActivity extends AppCompatActivity {
 
     String notification;
 
+    int gameState = GameState.GAMEIDLE;
     boolean playerLeftTheRoom = false;
     boolean newGameRequested = false;
 
@@ -88,6 +89,8 @@ public class PlayActivity extends AppCompatActivity {
         messageRef = database.getReference("rooms/" + roomName + "/message");
 //        message = role + ":Poked!";
 
+        newGameButton = findViewById(R.id.newGameButton);
+
         if (role.equals("host")) {
             boolean hostIgraPrvi = hostIgraPrvi();
             zapocniNovuIgru(hostIgraPrvi);
@@ -105,15 +108,27 @@ public class PlayActivity extends AppCompatActivity {
 
 
 
-        newGameButton = findViewById(R.id.newGameButton);
+
         newGameButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if (gameState == GameState.GAMEIDLE) {
 //                zapocniNovuIgru(hostIgraPrvi());
-                newGameRequested = true;
-                messageObject = new Message(Message.MessageCodes.ZAHTEVZANOVOMIGROM, role, playerName, 0, 0 , 0);
-                message = Message.convertToJsonString(messageObject);
-                messageRef.setValue(message);
+                    newGameRequested = true;
+                    gameState = GameState.NEWGAMEREQUESTED;
+                    newGameButton.setEnabled(false);
+                    messageObject = new Message(Message.MessageCodes.ZAHTEVZANOVOMIGROM, role, playerName, 0, 0, 0);
+                    message = Message.convertToJsonString(messageObject);
+                    messageRef.setValue(message);
+                } else if (gameState == GameState.GAMEACTIVE) {
+//                zapocniNovuIgru(hostIgraPrvi());
+//                    newGameRequested = true;
+                    gameState = GameState.DRAWREQUESTED;
+                    newGameButton.setEnabled(false);
+                    messageObject = new Message(Message.MessageCodes.ZAHTEVZAREMIJEM, role, playerName, 0, 0, 0);
+                    message = Message.convertToJsonString(messageObject);
+                    messageRef.setValue(message);
+                }
             }
         });
         addRoomEventListener();
@@ -147,6 +162,13 @@ public class PlayActivity extends AppCompatActivity {
 
     }
 
+    public interface GameState {
+        int GAMEACTIVE = 0;
+        int NEWGAMEREQUESTED = 1;
+        int DRAWREQUESTED = 2;
+        int GAMEIDLE = 3;
+    }
+    
     private void addRoomLeftListener() {
         roomRef.addValueEventListener(new ValueEventListener() {
             @Override
@@ -348,6 +370,9 @@ public class PlayActivity extends AppCompatActivity {
         //((TextView) findViewById(R.id.gameResultLabel)).setText("");
         informPlayersWhoPlaysFirst(hostPlaysFirst);
         igra.start();
+        gameState = GameState.GAMEACTIVE;
+        newGameButton.setText("REMI");
+        newGameButton.setEnabled(true);
         new Thread(new SetGameResultLabelThread()).start();
     }
     private class SetGameResultLabelThread implements Runnable {
@@ -369,6 +394,9 @@ public class PlayActivity extends AppCompatActivity {
 
                         // Stuff that updates the UI
                         ((TextView) findViewById(R.id.gameResultLabel)).setText(igra.generisiPorukuOPobedniku());
+                        gameState = GameState.GAMEIDLE;
+                        newGameButton.setText("NOVA IGRA");
+                        newGameButton.setEnabled(true);
                     }
                 });
             //((TextView) findViewById(R.id.gameResultLabel)).setText(igra.generisiPorukuOPobedniku());
@@ -438,6 +466,8 @@ public class PlayActivity extends AppCompatActivity {
                     }
                 } else if (messageObject.getMessageCode() == Message.MessageCodes.ZAHTEVZANOVOMIGROM) {
                     if (!newGameRequested) { // da bi znali da je prijemna strana
+                        newGameButton.setEnabled(false);
+                        gameState = GameState.NEWGAMEREQUESTED;
                         AlertDialog.Builder builder = new AlertDialog.Builder(playActivity);
                         View view = playActivity.getLayoutInflater().inflate(R.layout.dialog_layout, null);
                         builder.setView(view);
@@ -451,6 +481,8 @@ public class PlayActivity extends AppCompatActivity {
                                 messageObject = new Message(Message.MessageCodes.ODGOVORNANOVUIGRU, role, playerName, 0, 0, 0);
                                 message = Message.convertToJsonString(messageObject);
                                 messageRef.setValue(message);
+                                newGameButton.setEnabled(true);
+                                gameState = GameState.GAMEIDLE;
                                 alertDialog.dismiss();
                             }
                         });
@@ -527,6 +559,8 @@ public class PlayActivity extends AppCompatActivity {
                                     .setCancelable(false)
                                     .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                                         public void onClick(DialogInterface dialog, int id) {
+                                            newGameButton.setEnabled(true);
+                                            gameState = GameState.GAMEIDLE;
                                             dialog.dismiss();
                                         }
                                     });
@@ -537,6 +571,71 @@ public class PlayActivity extends AppCompatActivity {
 
                     }
                     newGameRequested = false;
+                } else if (messageObject.getMessageCode() == Message.MessageCodes.ZAHTEVZAREMIJEM) {
+                    if (gameState == GameState.GAMEACTIVE) { // da bi znali da je prijemna strana
+                        newGameButton.setEnabled(false);
+                        gameState = GameState.DRAWREQUESTED;
+                        AlertDialog.Builder builder = new AlertDialog.Builder(playActivity);
+                        View view = playActivity.getLayoutInflater().inflate(R.layout.dialog_layout, null);
+                        builder.setView(view);
+                        final AlertDialog alertDialog = builder.create();
+                        TextView dialogText = view.findViewById(R.id.dialog_text);
+                        dialogText.setText("Igrač " + messageObject.getSenderPlayerName() + " nudi remi.");
+                        Button reject = (Button) view.findViewById(R.id.reject_action);
+                        reject.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                messageObject = new Message(Message.MessageCodes.ODGOVORNAREMI, role, playerName, 0, 0, 0);
+                                message = Message.convertToJsonString(messageObject);
+                                messageRef.setValue(message);
+                                newGameButton.setEnabled(true);
+                                gameState = GameState.GAMEACTIVE; // remi je odbijen i nastavljamo partiju
+                                alertDialog.dismiss();
+                            }
+                        });
+                        Button accept = (Button) view.findViewById(R.id.accept_action);
+                        accept.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                igra.zakljucenRemi();
+                                newGameButton.setText("NOVA IGRA");
+                                newGameButton.setEnabled(true);
+                                messageObject = new Message(Message.MessageCodes.ODGOVORNAREMI, role, playerName, 1, 0, 0);
+                                message = Message.convertToJsonString(messageObject);
+                                messageRef.setValue(message);
+                                gameState = GameState.GAMEIDLE;
+                                alertDialog.dismiss();
+                            }
+                        });
+                        alertDialog.setCancelable(false);
+                        alertDialog.show();
+
+                    }
+                } else if (messageObject.getMessageCode() == Message.MessageCodes.ODGOVORNAREMI) {
+                    if (gameState == GameState.DRAWREQUESTED) {
+                        if (messageObject.getResponse() == 1) {
+                            igra.zakljucenRemi();
+                            newGameButton.setText("NOVA IGRA");
+                            newGameButton.setEnabled(true);
+                            gameState = GameState.GAMEIDLE;
+                        } else if (messageObject.getResponse() == 0) {
+                            AlertDialog.Builder builder = new AlertDialog.Builder(playActivity);
+                            builder.setTitle("");
+                            builder.setMessage("Igrač " + messageObject.getSenderPlayerName() + " odbija remi.")
+                                    .setCancelable(false)
+                                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface dialog, int id) {
+                                            newGameButton.setEnabled(true);
+                                            gameState = GameState.GAMEACTIVE;
+                                            dialog.dismiss();
+                                        }
+                                    });
+                            AlertDialog alertDialog = builder.create();
+                            alertDialog.show();
+
+                        }
+
+                    }
                 }
 
             }

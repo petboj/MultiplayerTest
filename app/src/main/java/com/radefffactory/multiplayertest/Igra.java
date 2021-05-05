@@ -20,7 +20,7 @@ public class Igra extends Thread {
     private boolean covekOdigraoPotez = false;
     private boolean igraRegularnoZavrsena = true;
     private boolean remoteCovekOdigraoPotez = false;
-
+    private boolean igraZavrsenaRemijem = false;
 
     private DatabaseReference messageRef;
 
@@ -64,7 +64,14 @@ public class Igra extends Thread {
         this.zavrsena = true;
         notifyAll();
     }
-    
+
+    public synchronized void zakljucenRemi() {
+        if (this.zavrsena) return;
+        this.igraRegularnoZavrsena = true;
+        this.igraZavrsenaRemijem = true;
+        this.zavrsena = true;
+        notifyAll();
+    }
     public synchronized boolean isIgraRegularnoZavrsena() {
         return this.igraRegularnoZavrsena;
     }
@@ -144,8 +151,11 @@ public class Igra extends Thread {
                 poruka = "Čestitam, pobedili ste!";
             } else if (pobednik instanceof Kompjuter && gubitnik instanceof Covek)
                 poruka = "Žao mi je, ali izgubili ste!";
-        } else
+        } else if (igraZavrsenaRemijem) {
+            poruka = "Igra je završena remijem.";
+        } else {
             poruka = "Rezultat je nerešen.";
+        }
         return poruka;
     }
         
