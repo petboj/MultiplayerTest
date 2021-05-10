@@ -8,6 +8,7 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -49,6 +50,7 @@ public class PlayActivity extends AppCompatActivity {
     DatabaseReference playerRef;
     DatabaseReference roomRef;
 
+    ValueEventListener messageRefValueEventListener = null;
     Button newGameButton;
     Button leaveRoomButton;
 
@@ -67,6 +69,7 @@ public class PlayActivity extends AppCompatActivity {
         //    mainActivity = (Activity) getBaseContext();
         playActivity = this;
 
+        this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         database = FirebaseDatabase.getInstance();
 
         SharedPreferences preferences = getSharedPreferences("PREFS", 0);
@@ -114,6 +117,7 @@ public class PlayActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if (gameState == GameState.GAMEIDLE) {
 //                zapocniNovuIgru(hostIgraPrvi());
+                    Log.d("DebugTag", "Kliknulo se na Nova igra, igra je u stanju " + gameState);
                     newGameRequested = true;
                     gameState = GameState.NEWGAMEREQUESTED;
                     newGameButton.setEnabled(false);
@@ -141,6 +145,8 @@ public class PlayActivity extends AppCompatActivity {
                 startActivity(new Intent(getApplicationContext(), MainActivity2.class));
                 playerLeftTheRoom = true;
                 roomRef.setValue(null);
+                messageRef.removeEventListener(messageRefValueEventListener);
+                playActivity.finish();
             }
         });
 
@@ -178,6 +184,8 @@ public class PlayActivity extends AppCompatActivity {
                     playerRef.setValue(PlayerState.IDLE);
                     roomRef.removeEventListener(this);
                     startActivity(new Intent(getApplicationContext(), MainActivity2.class));
+                    messageRef.removeEventListener(messageRefValueEventListener);
+                    playActivity.finish();
                 }
             }
 
@@ -395,6 +403,7 @@ public class PlayActivity extends AppCompatActivity {
                         // Stuff that updates the UI
                         ((TextView) findViewById(R.id.gameResultLabel)).setText(igra.generisiPorukuOPobedniku());
                         gameState = GameState.GAMEIDLE;
+                        newGameRequested = false;
                         newGameButton.setText("NOVA IGRA");
                         newGameButton.setEnabled(true);
                     }
@@ -439,7 +448,8 @@ public class PlayActivity extends AppCompatActivity {
     }
 
     private void addRoomEventListener() {
-        messageRef.addValueEventListener(new ValueEventListener() {
+
+        messageRefValueEventListener =  new ValueEventListener() {
             @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -465,6 +475,7 @@ public class PlayActivity extends AppCompatActivity {
                         zapocniNovuIgru(messageObject.getResponse() == 1);
                     }
                 } else if (messageObject.getMessageCode() == Message.MessageCodes.ZAHTEVZANOVOMIGROM) {
+                    Log.d("DebugTag", "Primljena poruka ima kod ZAHTEVZANOVOMIGROM, a newGameRequested je " + newGameRequested);
                     if (!newGameRequested) { // da bi znali da je prijemna strana
                         newGameButton.setEnabled(false);
                         gameState = GameState.NEWGAMEREQUESTED;
@@ -598,6 +609,7 @@ public class PlayActivity extends AppCompatActivity {
                             @Override
                             public void onClick(View v) {
                                 igra.zakljucenRemi();
+                                newGameRequested = false;
                                 newGameButton.setText("NOVA IGRA");
                                 newGameButton.setEnabled(true);
                                 messageObject = new Message(Message.MessageCodes.ODGOVORNAREMI, role, playerName, 1, 0, 0);
@@ -646,7 +658,8 @@ public class PlayActivity extends AppCompatActivity {
 //                messageRef.setValue(message);
                 messageRef.setValue(null);
             }
-        });
+        };
+        messageRef.addValueEventListener(messageRefValueEventListener);
     }
 
 
@@ -693,7 +706,13 @@ public class PlayActivity extends AppCompatActivity {
 
     private static boolean hostIgraPrvi() {
         double x = Math.random();
+        // TODO staviti pravi random posle testiranja
         x = 0.4; // za potrebe testiranja da bi guest igrao prvi
         return (x >= 0.5);
+    }
+
+    @Override
+    public void onBackPressed() {
+//        super.onBackPressed();
     }
 }

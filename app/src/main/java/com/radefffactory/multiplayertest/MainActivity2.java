@@ -44,10 +44,12 @@ public class MainActivity2 extends AppCompatActivity {
     DatabaseReference playerRef;
     DatabaseReference playersRef;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main2);
+
 
         database = FirebaseDatabase.getInstance();
 
@@ -124,6 +126,7 @@ public class MainActivity2 extends AppCompatActivity {
                 intent.putExtra("roomName", roomName);
                 roomRef.removeEventListener(this);  // Da se ne bi pozivao ponovo ovaj listener kad se pređe iz PlayaAtivity u ovaj activity
                 startActivity(intent);
+                finish();
             }
 
             @Override
@@ -222,6 +225,7 @@ public class MainActivity2 extends AppCompatActivity {
                     Intent intent = new Intent(getApplicationContext(), PlayActivity.class);
                     intent.putExtra("roomName", roomName);
                     startActivity(intent);
+                    finish();
                 }
             }
 
@@ -233,4 +237,8 @@ public class MainActivity2 extends AppCompatActivity {
 
     }
 
+    @Override
+    public void onBackPressed() {
+//        super.onBackPressed();
+    }
 }
